@@ -148,7 +148,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.update { it.copy(isClearing = false, message = "nothing_to_clear") }
                 return@launch
             }
-            engine.clearAll(items, current.strategy) { current_, total, item, result ->
+            engine.clearAll(items, current.strategy) { current_, total, _, result ->
                 _state.update {
                     when (result) {
                         is ClearResult.Success -> it.copy(

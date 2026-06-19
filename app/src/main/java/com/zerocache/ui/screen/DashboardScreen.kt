@@ -178,7 +178,7 @@ fun DashboardScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 96.dp)
+                        contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
                         items(state.apps, key = { it.packageName }) { item ->
                             AppCacheRow(
@@ -197,10 +197,8 @@ fun DashboardScreen(
                     )
                 }
             }
-        }
 
-        // Floating clear-all action
-        Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.BottomCenter) {
+            // Action button placed inline at the bottom of the Column
             ClearAllButton(
                 enabled = state.apps.any { it.cacheSizeBytes > 0L } && !state.isClearing,
                 onClick = { viewModel.requestClearAll() }
@@ -611,7 +609,7 @@ private fun ClearAllButton(enabled: Boolean, onClick: () -> Unit) {
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(20.dp)
+            .padding(vertical = 16.dp)
             .height(56.dp),
         shape = RoundedCornerShape(28.dp),
         colors = ButtonDefaults.buttonColors(

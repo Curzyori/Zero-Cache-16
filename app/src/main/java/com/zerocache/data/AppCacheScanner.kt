@@ -46,6 +46,21 @@ class AppCacheScanner(private val context: Context) {
      * Best-effort cache size in bytes. Returns 0 if the directory is unreadable.
      */
     fun cacheSizeForPackage(packageName: String): Long {
+        if (hasUsageStatsPermission()) {
+            try {
+                val storageStatsManager = context.getSystemService(Context.STORAGE_STATS_SERVICE) as android.app.usage.StorageStatsManager
+                val stats = storageStatsManager.queryStatsForPackage(
+                    StorageManager.UUID_DEFAULT,
+                    packageName,
+                    android.os.Process.myUserHandle()
+                )
+                return stats.cacheBytes
+            } catch (e: Exception) {
+                Log.e(tag, "Failed to query stats for $packageName using StorageStatsManager", e)
+            }
+        }
+
+        // Fallback for older devices or if permission not granted
         // External cache is readable on all API levels (subject to scoped storage)
         val externalCache = context.externalCacheDir?.parentFile?.parentFile?.let { base ->
             File(base, packageName + "/cache")
