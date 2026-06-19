@@ -3,7 +3,9 @@
     <!-- App identity -->
     <string name="app_name">ZeroCache</string>
 
-
+    <!-- Accessibility service -->
+    <string name="accessibility_service_name">ZeroCache Auto-Clear</string>
+    <string name="accessibility_service_description">Automatically opens App Info and taps the Clear Cache button to clean app cache without root.</string>
 
     <!-- Dashboard header -->
     <string name="dashboard_title">ZeroCache</string>
@@ -18,10 +20,13 @@
     <string name="mode_label">Mode</string>
     <string name="mode_no_root">No Root</string>
     <string name="mode_root">Root</string>
-    <string name="mode_no_root_desc">Direct API</string>
+    <string name="mode_no_root_desc">AccessibilityService</string>
     <string name="mode_root_desc">Full pm clear access</string>
 
-
+    <!-- Permission prompts -->
+    <string name="perm_accessibility_title">Enable Accessibility</string>
+    <string name="perm_accessibility_desc">To clear cache without root, enable the ZeroCache service in Settings → Accessibility. No root required.</string>
+    <string name="perm_accessibility_btn">Open Settings</string>
     <string name="perm_usage_title">Usage Stats Permission</string>
     <string name="perm_usage_desc">To read each app\'s cache size, grant Usage Access in Settings → Apps → Special access → Usage access.</string>
     <string name="perm_usage_btn">Open Settings</string>
@@ -50,7 +55,7 @@
 
     <!-- Confirm dialog -->
     <string name="confirm_clear_title">Clear all cache?</string>
-    <string name="confirm_clear_msg">Will clear cache for %1$d apps. This action cannot be undone.</string>
+    <string name="confirm_clear_msg">Will open %1$d App Info pages and tap the Clear Cache button one by one. This action cannot be undone.</string>
     <string name="confirm_root_clear_msg">Will run pm clear on %1$d apps with root access. Takes a few seconds.</string>
 
     <!-- Progress -->
@@ -60,7 +65,7 @@
     <string name="progress_idle">Ready</string>
 
     <!-- Errors -->
-
+    <string name="err_no_accessibility">Accessibility not enabled. Cannot clear cache.</string>
     <string name="err_no_root">Root not available. Switch to No-Root mode.</string>
     <string name="err_open_app_info">Cannot open App Info for %1$s</string>
     <string name="err_clear_failed">Failed to clear cache for %1$s</string>
@@ -72,7 +77,7 @@
     <string name="lang_toggle_cd">Toggle language</string>
 
     <!-- Misc -->
-    <string name="hint_first_run">Tap the Clear button to start. Cache will be cleared directly.</string>
+    <string name="hint_first_run">Tap the Clear button to start. The first time, it will open Accessibility Settings.</string>
     <string name="hint_root_first_run">Root detected. Root mode is faster, no auto-tap needed.</string>
     <string name="size_bytes">%1$d B</string>
     <string name="size_kb">%1$.1f KB</string>

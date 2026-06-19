@@ -3,6 +3,7 @@ package com.zerocache.data
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.zerocache.service.ZeroCacheAccessibilityService
 import com.zerocache.util.RootChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -29,6 +30,7 @@ sealed class ClearResult {
  */
 sealed class ClearStrategy {
     data object Root : ClearStrategy()
+    data object NoRoot : ClearStrategy()
     data object DirectApi : ClearStrategy()  // Hidden API via reflection
 }
 
@@ -182,11 +184,23 @@ class ClearEngine(
     }
 
     /**
-     * Convenience: run a clear over a list using the direct API (no UI navigation).
+     * No-Root mode: rely on AccessibilityService to navigate to App Info → Storage → Clear cache.
+     */
+    suspend fun clearCacheNoRoot(info: AppCacheInfo): ClearResult = withContext(Dispatchers.IO) {
+        val service = ZeroCacheAccessibilityService.instance
+            ?: return@withContext ClearResult.Failure("accessibility service not running")
+        return@withContext try {
+            val ok = service.openAppInfoAndClearCache(info.packageName)
+            if (ok) ClearResult.Success(info.cacheSizeBytes) else ClearResult.Failure("tap failed")
+        } catch (t: Throwable) {
+            Log.w(tag, "clearCacheNoRoot failed", t)
+            ClearResult.Failure(t.message ?: "unknown")
+        }
+    }
+
+    /**
+     * Convenience: run a clear over a list using the chosen strategy.
      * Reports progress through [onProgress].
-     *
-     * Uses the hidden PackageManager.deleteApplicationCacheFiles API via reflection.
-     * Apps that fail are simply skipped — no Settings page is ever opened.
      */
     suspend fun clearAll(
         items: List<AppCacheInfo>,
@@ -197,9 +211,23 @@ class ClearEngine(
         for ((i, item) in items.withIndex()) {
             val result = when (strategy) {
                 ClearStrategy.Root -> clearCacheRoot(item)
+                ClearStrategy.NoRoot -> {
+                    // Try direct API first (faster, no UI navigation)
+                    val directResult = clearCacheDirect(item)
+                    if (directResult is ClearResult.Success) {
+                        directResult
+                    } else {
+                        // Fall back to accessibility service
+                        clearCacheNoRoot(item)
+                    }
+                }
                 ClearStrategy.DirectApi -> clearCacheDirect(item)
             }
             onProgress(i + 1, total, item, result)
+            if (strategy == ClearStrategy.NoRoot) {
+                // Small delay between apps for accessibility service to settle
+                delay(200L)
+            }
         }
     }
 }

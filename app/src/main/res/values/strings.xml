@@ -3,7 +3,9 @@
     <!-- App identity -->
     <string name="app_name">ZeroCache</string>
 
-
+    <!-- Accessibility service -->
+    <string name="accessibility_service_name">ZeroCache Auto-Clear</string>
+    <string name="accessibility_service_description">Otomatis membuka halaman App Info dan mengetuk tombol Hapus Cache untuk membersihkan cache aplikasi tanpa root.</string>
 
     <!-- Dashboard header -->
     <string name="dashboard_title">ZeroCache</string>
@@ -18,10 +20,13 @@
     <string name="mode_label">Mode</string>
     <string name="mode_no_root">Tanpa Root</string>
     <string name="mode_root">Root</string>
-    <string name="mode_no_root_desc">Direct API</string>
+    <string name="mode_no_root_desc">AccessibilityService</string>
     <string name="mode_root_desc">Akses penuh pm clear</string>
 
-
+    <!-- Permission prompts -->
+    <string name="perm_accessibility_title">Aktifkan Aksesibilitas</string>
+    <string name="perm_accessibility_desc">Untuk menghapus cache tanpa root, aktifkan layanan ZeroCache di Setelan → Aksesibilitas. Root tidak diperlukan.</string>
+    <string name="perm_accessibility_btn">Buka Setelan</string>
     <string name="perm_usage_title">Izin Usage Stats</string>
     <string name="perm_usage_desc">Untuk membaca ukuran cache tiap aplikasi, berikan izin Usage Access di Setelan → Aplikasi → Akses penggunaan khusus.</string>
     <string name="perm_usage_btn">Buka Setelan</string>
@@ -50,7 +55,7 @@
 
     <!-- Confirm dialog -->
     <string name="confirm_clear_title">Hapus semua cache?</string>
-    <string name="confirm_clear_msg">Akan menghapus cache dari %1$d aplikasi. Tindakan ini tidak bisa dibatalkan.</string>
+    <string name="confirm_clear_msg">Akan membuka %1$d halaman App Info dan mengetuk tombol Hapus Cache satu per satu. Tindakan ini tidak bisa dibatalkan.</string>
     <string name="confirm_root_clear_msg">Akan menjalankan pm clear pada %1$d aplikasi dengan akses root. Butuh beberapa detik.</string>
 
     <!-- Progress -->
@@ -60,7 +65,7 @@
     <string name="progress_idle">Siap</string>
 
     <!-- Errors -->
-
+    <string name="err_no_accessibility">Aksesibilitas belum aktif. Tidak bisa membersihkan cache.</string>
     <string name="err_no_root">Root tidak tersedia. Aktifkan mode Tanpa Root.</string>
     <string name="err_open_app_info">Tidak bisa membuka halaman Info Aplikasi untuk %1$s</string>
     <string name="err_clear_failed">Gagal menghapus cache untuk %1$s</string>
@@ -72,7 +77,7 @@
     <string name="lang_toggle_cd">Ganti bahasa</string>
 
     <!-- Misc -->
-    <string name="hint_first_run">Ketuk tombol Hapus untuk mulai. Cache akan dihapus secara langsung.</string>
+    <string name="hint_first_run">Ketuk tombol Hapus untuk mulai. Pertama kali akan membuka Setelan Aksesibilitas.</string>
     <string name="hint_root_first_run">Root terdeteksi. Mode root lebih cepat, tidak perlu tap otomatis.</string>
     <string name="size_bytes">%1$d B</string>
     <string name="size_kb">%1$.1f KB</string>
