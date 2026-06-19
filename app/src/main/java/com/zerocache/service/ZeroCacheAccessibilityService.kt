@@ -71,6 +71,8 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
     private val pendingResult = AtomicReference<(Boolean) -> Unit>(null)
     @Volatile
     private var clickedStorage = false
+    @Volatile
+    private var activePackageName: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -135,6 +137,12 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        
+        // Track foreground package name
+        event.packageName?.toString()?.let { pkg ->
+            activePackageName = pkg
+        }
+
         if (pendingPackage.get() == null) return
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) return
@@ -146,10 +154,14 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
                 // Wait a bit for the cache to be cleared, then navigate back
                 scope.launch {
                     delay(500L)
-                    navigateBack()
+                    if (!isZeroCacheInForeground()) {
+                        navigateBack()
+                    }
                     if (clickedStorage) {
                         delay(350L)
-                        navigateBack()
+                        if (!isZeroCacheInForeground()) {
+                            navigateBack()
+                        }
                     }
                     delay(300L)
                     pendingResult.get()?.invoke(true)
@@ -161,6 +173,10 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
         } finally {
             root.recycle()
         }
+    }
+
+    private fun isZeroCacheInForeground(): Boolean {
+        return activePackageName == this.packageName
     }
 
     override fun onInterrupt() {

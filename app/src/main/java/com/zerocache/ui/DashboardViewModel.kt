@@ -42,6 +42,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val scanner = AppCacheScanner(application)
     private val engine = ClearEngine(application, scanner)
+    private val clearedPackageNames = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private val _state = MutableStateFlow(
         DashboardUiState(
@@ -71,6 +72,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun refresh(hasAccessibility: Boolean) {
         viewModelScope.launch {
+            clearedPackageNames.clear() // Clear cache overrides on manual rescan
             val hasUsageStats = scanner.hasUsageStatsPermission()
             _state.update { it.copy(isLoading = true, message = null, hasUsageStats = hasUsageStats, hasAccessibility = hasAccessibility) }
             val apps = if (hasUsageStats) {
@@ -78,11 +80,12 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             } else {
                 emptyList()
             }
-            val total = apps.sumOf { it.cacheSizeBytes }
+            val activeApps = apps.filter { it.cacheSizeBytes > 0L }
+            val total = activeApps.sumOf { it.cacheSizeBytes }
             _state.update {
                 it.copy(
                     isLoading = false,
-                    apps = apps,
+                    apps = activeApps,
                     totalCacheBytes = total
                 )
             }
@@ -149,7 +152,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 _state.update { it.copy(isClearing = false, message = "nothing_to_clear") }
                 return@launch
             }
-            engine.clearAll(items, current.strategy) { current_, total, _, result ->
+            engine.clearAll(items, current.strategy) { current_, total, item, result ->
+                if (result is ClearResult.Success) {
+                    clearedPackageNames.add(item.packageName)
+                }
                 _state.update {
                     when (result) {
                         is ClearResult.Success -> it.copy(
@@ -171,6 +177,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             }
             // Re-scan to get fresh sizes after clearing
             val newApps = withContext(Dispatchers.IO) { scanner.scan() }
+                .map { app ->
+                    if (clearedPackageNames.contains(app.packageName)) app.copy(cacheSizeBytes = 0L) else app
+                }
+                .filter { it.cacheSizeBytes > 0L }
             val newTotal = newApps.sumOf { it.cacheSizeBytes }
             _state.update {
                 it.copy(
@@ -193,7 +203,12 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 // Try direct API first (no accessibility needed if platform signed/system app)
                 val directResult = engine.clearCacheDirect(item)
                 if (directResult is ClearResult.Success) {
+                    clearedPackageNames.add(item.packageName)
                     val newApps = withContext(Dispatchers.IO) { scanner.scan() }
+                        .map { app ->
+                            if (clearedPackageNames.contains(app.packageName)) app.copy(cacheSizeBytes = 0L) else app
+                        }
+                        .filter { it.cacheSizeBytes > 0L }
                     val newTotal = newApps.sumOf { it.cacheSizeBytes }
                     _state.update {
                         it.copy(
@@ -222,7 +237,14 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 ClearStrategy.DirectApi -> engine.clearCacheDirect(item)
             }
+            if (result is ClearResult.Success) {
+                clearedPackageNames.add(item.packageName)
+            }
             val newApps = withContext(Dispatchers.IO) { scanner.scan() }
+                .map { app ->
+                    if (clearedPackageNames.contains(app.packageName)) app.copy(cacheSizeBytes = 0L) else app
+                }
+                .filter { it.cacheSizeBytes > 0L }
             val newTotal = newApps.sumOf { it.cacheSizeBytes }
             val freedExtra = if (result is ClearResult.Success) result.freedBytes else 0L
             val clearedExtra = if (result is ClearResult.Success) 1 else 0
