@@ -55,11 +55,22 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
         private val CLEAR_DATA_TEXTS = listOf(
             "clear data", "hapus data", "clear storage", "hapus penyimpanan"
         )
+
+        // Storage & Cache button matching (to enter the Storage sub-screen)
+        private val STORAGE_IDS = listOf(
+            "com.android.settings:id/storage_settings",
+            "com.android.settings:id/storage"
+        )
+        private val STORAGE_TEXTS = listOf(
+            "storage", "penyimpanan", "memori", "storage & cache", "penyimpanan & cache"
+        )
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val pendingPackage = AtomicReference<String?>(null)
     private val pendingResult = AtomicReference<(Boolean) -> Unit>(null)
+    @Volatile
+    private var clickedStorage = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -93,6 +104,7 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
             Log.w(TAG, "another package already in flight: $current, aborting")
             return false
         }
+        clickedStorage = false // Reset state for new app
         return kotlinx.coroutines.withTimeoutOrNull(20_000L) {
             kotlinx.coroutines.suspendCancellableCoroutine<Boolean> { cont ->
                 pendingResult.set { ok -> if (cont.isActive) cont.resumeWith(Result.success(ok)) }
@@ -135,9 +147,16 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
                 scope.launch {
                     delay(500L)
                     navigateBack()
+                    if (clickedStorage) {
+                        delay(350L)
+                        navigateBack()
+                    }
                     delay(300L)
                     pendingResult.get()?.invoke(true)
                 }
+            } else if (!clickedStorage && tryFindAndClickStorage(root)) {
+                Log.d(TAG, "Storage option tapped for ${pendingPackage.get()}")
+                clickedStorage = true
             }
         } finally {
             root.recycle()
@@ -164,7 +183,22 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
             }
         }
         // 2. Try by text (fallback for OEM skins)
-        return clickByText(root, CLEAR_CACHE_TEXTS)
+        return clickAncestorOfText(root, CLEAR_CACHE_TEXTS, CLEAR_DATA_TEXTS)
+    }
+
+    private fun tryFindAndClickStorage(root: AccessibilityNodeInfo): Boolean {
+        // 1. Try by view id (fastest)
+        for (id in STORAGE_IDS) {
+            val nodes = root.findAccessibilityNodeInfosByViewId(id)
+            for (n in nodes) {
+                if (n.isClickable && n.isEnabled) {
+                    return performClick(n)
+                }
+                n.recycle()
+            }
+        }
+        // 2. Try by text
+        return clickAncestorOfText(root, STORAGE_TEXTS)
     }
 
     /**
@@ -178,25 +212,41 @@ class ZeroCacheAccessibilityService : AccessibilityService() {
         return CLEAR_CACHE_TEXTS.any { it in lower }
     }
 
-    private fun clickByText(root: AccessibilityNodeInfo, needles: List<String>): Boolean {
-        val all = ArrayList<AccessibilityNodeInfo>(64)
-        collectClickableNodes(root, all)
-        for (n in all) {
-            val text = (n.text ?: n.contentDescription)?.toString()?.lowercase().orEmpty()
-            // Skip if it looks like "Clear data"
-            if (CLEAR_DATA_TEXTS.any { it in text }) {
-                n.recycle()
+    private fun clickAncestorOfText(root: AccessibilityNodeInfo, needles: List<String>, rejectTexts: List<String> = emptyList()): Boolean {
+        val nodes = ArrayList<AccessibilityNodeInfo>()
+        findNodesWithText(root, needles, nodes)
+        for (n in nodes) {
+            val nodeText = (n.text ?: n.contentDescription)?.toString()?.lowercase().orEmpty()
+            if (rejectTexts.any { it in nodeText }) {
                 continue
             }
-            if (needles.any { it in text }) {
-                val ok = performClick(n)
-                recycleAll(all)
-                return ok
+            var current: AccessibilityNodeInfo? = n
+            while (current != null) {
+                if (current.isClickable && current.isEnabled) {
+                    val ok = performClick(current)
+                    recycleAll(nodes)
+                    if (current != n) current.recycle()
+                    return ok
+                }
+                val parent = current.parent
+                if (current != n) current.recycle()
+                current = parent
             }
-            n.recycle()
         }
-        recycleAll(all)
+        recycleAll(nodes)
         return false
+    }
+
+    private fun findNodesWithText(node: AccessibilityNodeInfo, needles: List<String>, out: MutableList<AccessibilityNodeInfo>) {
+        val text = (node.text ?: node.contentDescription)?.toString()?.lowercase().orEmpty()
+        if (needles.any { it in text }) {
+            out.add(AccessibilityNodeInfo.obtain(node))
+        }
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            findNodesWithText(child, needles, out)
+            child.recycle()
+        }
     }
 
     private fun collectClickableNodes(node: AccessibilityNodeInfo, out: MutableList<AccessibilityNodeInfo>) {
