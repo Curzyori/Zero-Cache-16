@@ -1,7 +1,6 @@
 package com.zerocache.ui
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zerocache.data.AppCacheInfo
@@ -24,6 +23,7 @@ data class DashboardUiState(
     val totalCacheBytes: Long = 0L,
     val clearedCount: Int = 0,
     val freedBytes: Long = 0L,
+    val failedCount: Int = 0,
     val isClearing: Boolean = false,
     val isRooted: Boolean = false,
     val hasAccessibility: Boolean = false,
@@ -46,35 +46,47 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _state = MutableStateFlow(
         DashboardUiState(
-            isRooted = RootChecker.isRooted(),
-            hasUsageStats = scanner.hasUsageStatsPermission(),
-            hasAccessibility = com.zerocache.service.ZeroCacheAccessibilityService.instance != null
+            isRooted = false,
+            hasUsageStats = false,
+            hasAccessibility = false
         )
     )
     val state: StateFlow<DashboardUiState> = _state.asStateFlow()
 
     init {
-        val isRooted = RootChecker.isRooted()
-        val hasUsage = scanner.hasUsageStatsPermission()
-        val hasAccess = com.zerocache.service.ZeroCacheAccessibilityService.instance != null
-        _state.update {
-            it.copy(
-                isRooted = isRooted,
-                hasUsageStats = hasUsage,
-                hasAccessibility = hasAccess,
-                strategy = if (isRooted) ClearStrategy.Root else ClearStrategy.NoRoot
-            )
-        }
-        if (hasUsage) {
-            refresh(hasAccess)
+        viewModelScope.launch {
+            val isRooted = withContext(Dispatchers.IO) { RootChecker.isRooted() }
+            val hasUsage = scanner.hasUsageStatsPermission()
+            val hasAccess = com.zerocache.service.ZeroCacheAccessibilityService.instance != null
+            _state.update {
+                it.copy(
+                    isRooted = isRooted,
+                    hasUsageStats = hasUsage,
+                    hasAccessibility = hasAccess,
+                    strategy = if (isRooted) ClearStrategy.Root else ClearStrategy.NoRoot
+                )
+            }
+            if (hasUsage) {
+                refresh(hasAccess)
+            }
         }
     }
 
     fun refresh(hasAccessibility: Boolean) {
         viewModelScope.launch {
-            clearedPackageNames.clear() // Clear cache overrides on manual rescan
+            clearedPackageNames.clear()
             val hasUsageStats = scanner.hasUsageStatsPermission()
-            _state.update { it.copy(isLoading = true, message = null, hasUsageStats = hasUsageStats, hasAccessibility = hasAccessibility) }
+            _state.update {
+                it.copy(
+                    isLoading = true,
+                    message = null,
+                    hasUsageStats = hasUsageStats,
+                    hasAccessibility = hasAccessibility,
+                    clearedCount = 0,
+                    freedBytes = 0L,
+                    failedCount = 0
+                )
+            }
             val apps = if (hasUsageStats) {
                 withContext(Dispatchers.IO) { scanner.scan() }
             } else {
@@ -93,6 +105,9 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun checkPermissions() {
+        // Skip permission check while clearing — refresh() would clear clearedPackageNames
+        if (_state.value.isClearing) return
+
         val hasUsage = scanner.hasUsageStatsPermission()
         val hasAccess = com.zerocache.service.ZeroCacheAccessibilityService.instance != null
         val current = _state.value
@@ -145,7 +160,17 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun confirmClearAll() {
         val current = _state.value
-        _state.update { it.copy(showConfirm = false, isClearing = true, clearedCount = 0, freedBytes = 0L) }
+        _state.update {
+            it.copy(
+                showConfirm = false,
+                isClearing = true,
+                clearedCount = 0,
+                freedBytes = 0L,
+                failedCount = 0,
+                progressCurrent = 0,
+                progressTotal = current.apps.size
+            )
+        }
         viewModelScope.launch {
             val items = current.apps.filter { it.cacheSizeBytes > 0 || current.strategy == ClearStrategy.Root }
             if (items.isEmpty()) {
@@ -153,25 +178,34 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 return@launch
             }
             engine.clearAll(items, current.strategy) { current_, total, item, result ->
-                if (result is ClearResult.Success) {
-                    clearedPackageNames.add(item.packageName)
-                }
-                _state.update {
-                    when (result) {
-                        is ClearResult.Success -> it.copy(
-                            clearedCount = it.clearedCount + 1,
-                            freedBytes = it.freedBytes + result.freedBytes,
-                            progressCurrent = current_,
-                            progressTotal = total
-                        )
-                        is ClearResult.Failure -> it.copy(
-                            progressCurrent = current_,
-                            progressTotal = total
-                        )
-                        ClearResult.Skipped -> it.copy(
-                            progressCurrent = current_,
-                            progressTotal = total
-                        )
+                when (result) {
+                    is ClearResult.Success -> {
+                        clearedPackageNames.add(item.packageName)
+                        _state.update {
+                            it.copy(
+                                clearedCount = it.clearedCount + 1,
+                                freedBytes = it.freedBytes + result.freedBytes,
+                                progressCurrent = current_,
+                                progressTotal = total
+                            )
+                        }
+                    }
+                    is ClearResult.Failure -> {
+                        _state.update {
+                            it.copy(
+                                failedCount = it.failedCount + 1,
+                                progressCurrent = current_,
+                                progressTotal = total
+                            )
+                        }
+                    }
+                    ClearResult.Skipped -> {
+                        _state.update {
+                            it.copy(
+                                progressCurrent = current_,
+                                progressTotal = total
+                            )
+                        }
                     }
                 }
             }
@@ -202,7 +236,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             if (_state.value.strategy == ClearStrategy.NoRoot && !_state.value.hasAccessibility) {
                 // Try direct API first (no accessibility needed if platform signed/system app)
                 val directResult = engine.clearCacheDirect(item)
-                if (directResult is ClearResult.Success) {
+                if (directResult is ClearResult.Success && directResult.freedBytes > 0) {
                     clearedPackageNames.add(item.packageName)
                     val newApps = withContext(Dispatchers.IO) { scanner.scan() }
                         .map { app ->
@@ -229,7 +263,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 ClearStrategy.NoRoot -> {
                     // Try direct API first, fallback to accessibility
                     val directResult = engine.clearCacheDirect(item)
-                    if (directResult is ClearResult.Success) {
+                    if (directResult is ClearResult.Success && directResult.freedBytes > 0) {
                         directResult
                     } else {
                         engine.clearCacheNoRoot(item)
@@ -248,6 +282,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             val newTotal = newApps.sumOf { it.cacheSizeBytes }
             val freedExtra = if (result is ClearResult.Success) result.freedBytes else 0L
             val clearedExtra = if (result is ClearResult.Success) 1 else 0
+            val failedExtra = if (result is ClearResult.Failure) 1 else 0
             _state.update {
                 it.copy(
                     isClearing = false,
@@ -255,6 +290,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     totalCacheBytes = newTotal,
                     clearedCount = it.clearedCount + clearedExtra,
                     freedBytes = it.freedBytes + freedExtra,
+                    failedCount = it.failedCount + failedExtra,
                     message = if (result is ClearResult.Failure) "clear_failed:${item.appName}" else null
                 )
             }

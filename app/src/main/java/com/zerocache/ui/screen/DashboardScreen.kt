@@ -164,7 +164,11 @@ fun DashboardScreen(
             Spacer(Modifier.height(8.dp))
 
             // App list
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
                 if (!state.hasUsageStats) {
                     PermissionRequiredState(
                         onOpenUsage = onOpenUsageSettings
@@ -227,7 +231,13 @@ fun DashboardScreen(
                     val appName = msgKey.substringAfter("clear_failed:")
                     context.getString(R.string.err_clear_failed, appName)
                 }
-                msgKey == "done" -> progressIdle
+                msgKey == "done" -> {
+                    val freedStr = SizeFormatter.format(state.freedBytes)
+                    val failSuffix = if (state.failedCount > 0) {
+                        " " + context.getString(R.string.progress_done_with_failures, state.failedCount)
+                    } else ""
+                    context.getString(R.string.progress_done, freedStr, state.clearedCount, failSuffix)
+                }
                 else -> msgKey
             }
             scope.launch {

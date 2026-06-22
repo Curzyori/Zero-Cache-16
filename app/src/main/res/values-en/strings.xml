@@ -60,7 +60,8 @@
 
     <!-- Progress -->
     <string name="progress_clearing">Clearing %1$d / %2$d</string>
-    <string name="progress_done">Done. %1$s freed from %2$d apps.</string>
+    <string name="progress_done">Done. %1$s freed from %2$d apps%3$s.</string>
+    <string name="progress_done_with_failures"> (%1$d failed)</string>
     <string name="progress_failed">%1$d apps failed to clear.</string>
     <string name="progress_idle">Ready</string>
 

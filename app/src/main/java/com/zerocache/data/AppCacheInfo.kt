@@ -29,9 +29,11 @@ data class AppCacheInfo(
             val appName = pm.getApplicationLabel(info).toString()
             val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
                 (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-            // isClearable: only when the package allows clearing cache via PM.clearPackagePreferredActivities
-            // For most user apps this is true; for some system apps it isn't.
-            val isClearable = !isSystem || (info.flags and ApplicationInfo.FLAG_STOPPED) != 0
+            // isClearable: only persistent system services cannot have their cache cleared
+            // FLAG_PERSISTENT = system component that runs always (cannot clear cache)
+            // User apps and updated system apps are clearable
+            val isPersistent = (info.flags and ApplicationInfo.FLAG_PERSISTENT) != 0
+            val isClearable = !isSystem || !isPersistent
             return AppCacheInfo(
                 packageName = info.packageName,
                 appName = appName,

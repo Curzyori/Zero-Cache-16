@@ -60,7 +60,8 @@
 
     <!-- Progress -->
     <string name="progress_clearing">Membersihkan %1$d / %2$d</string>
-    <string name="progress_done">Selesai. %1$s dibebaskan dari %2$d aplikasi.</string>
+    <string name="progress_done">Selesai. %1$s dibebaskan dari %2$d aplikasi%3$s.</string>
+    <string name="progress_done_with_failures"> (%1$d gagal)</string>
     <string name="progress_failed">%1$d aplikasi gagal dibersihkan.</string>
     <string name="progress_idle">Siap</string>
 

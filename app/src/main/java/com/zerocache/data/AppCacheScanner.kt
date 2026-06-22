@@ -99,9 +99,6 @@ class AppCacheScanner(private val context: Context) {
         val apps = scanInstalledApps()
         val result = ArrayList<AppCacheInfo>()
         for (info in apps) {
-            val isSystem = (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
-                    (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-            if (isSystem) continue
             val cacheBytes = cacheSizeForPackage(info.packageName)
             result.add(AppCacheInfo.fromApplicationInfo(pm, info, cacheBytes))
         }
