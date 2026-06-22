@@ -59,7 +59,7 @@
     <string name="confirm_root_clear_msg">Akan menjalankan pm clear pada %1$d aplikasi dengan akses root. Butuh beberapa detik.</string>
 
     <!-- Progress -->
-    <string name="progress_clearing">Membersihkan %1$d / %2$d</string>
+    <string name="progress_clearing">Membersihkan…</string>
     <string name="progress_done">Selesai. %1$s dibebaskan dari %2$d aplikasi%3$s.</string>
     <string name="progress_done_with_failures"> (%1$d gagal)</string>
     <string name="progress_failed">%1$d aplikasi gagal dibersihkan.</string>
@@ -76,6 +76,17 @@
     <string name="lang_id">Bahasa Indonesia</string>
     <string name="lang_en">English</string>
     <string name="lang_toggle_cd">Ganti bahasa</string>
+
+    <!-- Settings -->
+    <string name="settings_cd">Pengaturan</string>
+    <string name="settings_change_language">Ubah Bahasa</string>
+    <string name="settings_github">GitHub Repo</string>
+    <string name="settings_support">Dukung Proyek</string>
+    <string name="settings_donate_title">Dukung ZeroCache</string>
+    <string name="settings_donate_desc">Bantu pengembangan proyek ini</string>
+    <string name="settings_evm_address">EVM (ETH / BNB / Polygon)</string>
+    <string name="settings_btc_address">BTC</string>
+    <string name="settings_address_copied">Alamat berhasil disalin!</string>
 
     <!-- Misc -->
     <string name="hint_first_run">Ketuk tombol Hapus untuk mulai. Pertama kali akan membuka Setelan Aksesibilitas.</string>

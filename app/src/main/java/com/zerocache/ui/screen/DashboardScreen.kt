@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,7 +54,8 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     onLanguageToggle: (String) -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
-    onOpenUsageSettings: () -> Unit
+    onOpenUsageSettings: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -97,11 +100,14 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
-                    LanguageFlagToggle(
-                        currentLang = LocaleManager.getLanguage(context),
-                        onToggle = { newLang -> onLanguageToggle(newLang) }
-                    )
-                    Spacer(Modifier.width(8.dp))
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.settings_cd),
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
@@ -605,10 +611,34 @@ private fun ClearingProgress(current: Int, total: Int) {
                     strokeWidth = 4.dp
                 )
                 Spacer(Modifier.height(16.dp))
+                // 3-dot loading animation
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(3) { index ->
+                        val alpha by animateFloatAsState(
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(600, easing = LinearEasing),
+                                repeatMode = RepeatMode.Reverse,
+                                initialStartOffset = StartOffset(index * 200)
+                            ),
+                            label = "dot$index"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha))
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.progress_clearing, current, total),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = stringResource(R.string.progress_clearing),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         }
